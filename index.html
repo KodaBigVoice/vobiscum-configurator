@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Configure a Vobiscum road car: model, trim and packages, with live specs and pricing.">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Vobiscum Configurator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: dark brand bar, model strip, car + specs on the left, trims and packages on the right, sticky total bar. Single light look, as on the Vobiscum site. */
+:root{
+  --ink:#0B0C0E; --ink-2:#1A1B1E; --paper:#F6F5F1; --paper-2:#ECEAE4; --card:#FBFAF7;
+  --line:#DEDCD6; --graphite:#64666A; --soft:#AEB1B6; --blue:#0B6FA8;
+  --f-sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --fam:#6E5A35;
+}
+html,body{background:var(--paper);color:var(--ink)}
+body{font-family:var(--f-sans);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.kicker{font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--graphite);margin:0}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+@media (min-width:900px){.wrap{padding-left:max(56px,env(safe-area-inset-left,0px));padding-right:max(56px,env(safe-area-inset-right,0px))}}
+
+.top{background:var(--ink);color:var(--paper);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;padding-block:18px}
+.brand{font-size:14px;font-weight:600;letter-spacing:.34em;color:var(--paper);text-decoration:none}
+.topnav{display:flex;flex-wrap:wrap;gap:6px 28px}
+.topnav button{border:0;background:none;padding:6px 0;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#D9D8D3;border-bottom:1px solid transparent}
+.topnav button[aria-current="page"]{color:var(--paper);border-bottom-color:var(--paper)}
+.topnav button:hover{color:var(--paper)}
+
+.models{display:flex;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.models::-webkit-scrollbar{display:none}
+.mbtn{flex:1 0 118px;min-height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:0;border-bottom:3px solid transparent;background:none;padding:12px 6px;color:var(--graphite)}
+.mbtn svg{width:92px;height:38px}
+.mbtn span{font-size:13px;font-weight:600}
+.mbtn small{font-size:11px;font-family:var(--f-mono);color:var(--graphite)}
+.mbtn:hover{color:var(--ink)}
+.mbtn[aria-pressed="true"]{color:var(--ink)}
+
+.main{display:flex;flex-wrap:wrap;max-width:1440px;margin:0 auto;width:100%}
+.stage{flex:999 1 600px;min-width:0;padding-block:40px 40px;display:flex;flex-direction:column;gap:28px}
+.side{flex:1 1 380px;max-width:480px;min-width:0;border-left:1px solid var(--line);background:var(--card);padding-block:40px;display:flex;flex-direction:column;gap:32px}
+@media (max-width:1019px){.side{max-width:none;border-left:0;border-top:1px solid var(--line)}}
+
+.title{display:flex;flex-direction:column;gap:10px}
+.badge{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.badge .m{font-size:44px;font-weight:700;letter-spacing:-.01em;line-height:1.1}
+.badge .t{font-size:30px;font-weight:700;line-height:1.2}
+.badge .t.box{background:var(--fam);color:var(--paper);padding:2px 10px}
+.badge .t.plain{color:var(--graphite);font-weight:400}
+.sub{margin:0;font-size:15px;color:var(--graphite);line-height:1.5;max-width:62ch}
+
+.car{position:relative;background:var(--paper-2);aspect-ratio:16/7;max-width:100%;display:flex;align-items:center;justify-content:center}
+.car svg{width:78%;height:auto}
+.car .eng{position:absolute;left:18px;bottom:14px;font-size:12px;color:var(--graphite)}
+.car .chip{position:absolute;right:16px;top:14px;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--fam)}
+
+.specs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line)}
+@media (max-width:560px){.specs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.spec{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:16px 18px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.spec .l{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--graphite)}
+.spec .v{font-family:var(--f-mono);font-size:26px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.spec .n{font-size:12px;color:var(--blue);min-height:16px}
+.engine-line{margin:0;font-family:var(--f-mono);font-size:13px;color:var(--graphite)}
+
+.range{border-top:1px solid var(--line)}
+.range h2{margin:16px 0 8px}
+.rtable{overflow-x:auto}
+.rtable table{width:100%;min-width:620px;border-collapse:collapse;font-size:13px}
+.rtable th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--graphite);padding:10px 10px 10px 0}
+.rtable td{padding:11px 10px 11px 0;border-top:1px solid var(--line);font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.rtable td:first-child{font-family:var(--f-sans);font-weight:600}
+.rtable tr.on td{background:var(--paper-2)}
+.rtable tr.on td:first-child{box-shadow:inset 3px 0 0 var(--fam);padding-left:10px}
+.rtable tr:not(.on) td:first-child{padding-left:10px}
+
+.side h2{margin:0 0 4px}
+.trims{display:flex;flex-direction:column;gap:10px}
+.tgroup{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));border:1px solid var(--line)}
+.tbtn{display:flex;flex-direction:column;gap:2px;align-items:flex-start;min-height:56px;padding:10px 16px;border:0;border-right:1px solid var(--line);background:var(--paper);text-align:left}
+.tgroup .tbtn:last-child{border-right:0}
+.tbtn b{font-weight:600}
+.tbtn span{font-family:var(--f-mono);font-size:12px;color:var(--graphite)}
+.tbtn:hover{background:var(--paper-2)}
+.tbtn[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.tbtn[aria-pressed="true"] span{color:var(--soft)}
+.tnote{font-size:12px;color:var(--graphite);margin:0}
+
+.pkgs{display:flex;flex-direction:column}
+.pkg{display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:12px;align-items:start;padding:14px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.pkg input{width:18px;height:18px;margin:2px 0 0;accent-color:var(--ink);cursor:pointer}
+.pkg .nm{display:flex;flex-direction:column;gap:3px;min-width:0}
+.pkg .nm b{font-size:15px;font-weight:600}
+.pkg .nm small{font-size:13px;color:var(--graphite);line-height:1.45}
+.pkg .nm em{font-style:normal;font-size:12px;color:var(--blue)}
+.pkg .pr{font-family:var(--f-mono);font-size:13px;white-space:nowrap}
+.pkg.inc{cursor:default}
+.pkg.inc .pr{color:var(--graphite)}
+.empty{font-size:14px;color:var(--graphite);margin:0;line-height:1.5}
+
+.bar{position:sticky;bottom:0;z-index:5;background:var(--ink);color:var(--paper);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;padding-block:16px calc(16px + env(safe-area-inset-bottom,0px))}
+.bar .info{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 22px;min-width:0}
+.bar .what{font-size:13px;color:var(--soft);min-width:0}
+.bar .tot{font-family:var(--f-mono);font-size:28px;font-variant-numeric:tabular-nums}
+.bar .acts{display:flex;gap:10px;flex-wrap:wrap}
+.btn{min-height:44px;padding:0 20px;border:1px solid rgba(255,255,255,.3);background:transparent;color:var(--paper);font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+.btn:hover{border-color:var(--paper)}
+.btn.solid{border:0;background:var(--paper);color:var(--ink);font-weight:600}
+.btn.solid:hover{background:#fff}
+.btn.dark{border:1px solid var(--ink);color:var(--ink)}
+.btn.dark.solid{background:var(--ink);color:var(--paper)}
+
+/* overlays */
+.scrim{position:fixed;inset:0;z-index:20;background:rgba(11,12,14,.55);display:flex;justify-content:flex-end}
+.sheet{width:min(560px,100%);height:100%;background:var(--paper);overflow-y:auto;display:flex;flex-direction:column;gap:24px;padding-block:calc(28px + env(safe-area-inset-top,0px)) 32px;box-sizing:border-box}
+.sheet .hd{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.x{width:44px;height:44px;border:1px solid var(--line);background:none;display:flex;align-items:center;justify-content:center}
+.x:hover{background:var(--paper-2)}
+.sum{display:grid;grid-template-columns:1fr auto;gap:10px 16px;font-size:14px}
+.sum dt{color:var(--graphite)} .sum dd{margin:0;font-family:var(--f-mono);text-align:right}
+.lines{border-top:1px solid var(--line);padding-top:14px;display:grid;grid-template-columns:1fr auto;gap:10px 16px;font-size:14px}
+.lines span:nth-child(even){font-family:var(--f-mono);text-align:right}
+.total{border-top:2px solid var(--ink);padding-top:12px;display:flex;justify-content:space-between;align-items:baseline}
+.total b{font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+.total span{font-family:var(--f-mono);font-size:30px}
+.code{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.code code{font-family:var(--f-mono);font-size:14px;background:var(--paper-2);padding:10px 12px;user-select:all}
+.saved{display:flex;flex-direction:column}
+.srow{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
+.srow .open{flex:1;min-width:0;border:0;background:none;text-align:left;padding:14px 0;display:flex;flex-direction:column;gap:3px}
+.srow .open b{font-weight:600}
+.srow .open span{font-size:12px;color:var(--graphite)}
+.srow .del{border:0;background:none;font-size:12px;color:var(--graphite);min-height:44px;padding:0 10px}
+.srow .del.arm{background:#8A1C1C;color:#fff}
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;background:var(--ink);color:var(--paper);padding:10px 16px;font-size:13px;max-width:calc(100vw - 32px)}
+
+/* Spitfire */
+.sf{background:#0B0C0E;color:var(--paper);min-height:100%}
+.sf .hero{padding-block:72px 40px;display:flex;flex-direction:column;gap:14px;max-width:1440px;margin:0 auto}
+.sf h1{margin:0;font-size:64px;font-weight:700;letter-spacing:-.01em;line-height:1}
+.sf .lede{margin:0;max-width:62ch;color:var(--soft);font-size:16px;line-height:1.7}
+.sf .cars{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:1px;background:rgba(255,255,255,.14);max-width:1440px;margin:0 auto}
+.sf .cardx{background:#0B0C0E;padding:32px 28px 36px;display:flex;flex-direction:column;gap:22px}
+.sf .pic{background:#141518;aspect-ratio:16/7;display:flex;align-items:center;justify-content:center}
+.sf .pic svg{width:80%;height:auto}
+.sf .bd{display:flex;align-items:center;gap:10px}
+.sf .bd .m{font-size:32px;font-weight:700}
+.sf .bd .t{font-size:22px;font-weight:700;background:#6E3D75;color:var(--paper);padding:1px 8px}
+.sf .role{margin:0;color:var(--soft);font-size:14px}
+.sf .g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid rgba(255,255,255,.14);border-left:1px solid rgba(255,255,255,.14)}
+.sf .g div{border-right:1px solid rgba(255,255,255,.14);border-bottom:1px solid rgba(255,255,255,.14);padding:14px 14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.sf .g .l{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--soft)}
+.sf .g .v{font-family:var(--f-mono);font-size:20px;white-space:nowrap}
+.sf .foot{max-width:1440px;margin:0 auto;padding-block:32px 56px;color:var(--soft);font-size:13px}
+@media (max-width:560px){.sf h1{font-size:44px}.sf .g{grid-template-columns:repeat(2,minmax(0,1fr))}.badge .m{font-size:34px}.badge .t{font-size:24px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= DATA — edit here ================= */
+const ENGINES={
+  MI408:{internal:'PT-20I4-08',desc:'2.0 T Inline-4',bhp:150,nm:240,revs:'1,500–6,500 rpm',source:'McLaren-derived'},
+  MI410:{internal:'PT-20I4-10',desc:'2.0 T Inline-4',bhp:210,nm:355,revs:'1,700–6,700 rpm',source:'McLaren-derived'},
+  MI415:{internal:'PT-20I4-15',desc:'2.0 T Inline-4',bhp:255,nm:420,revs:'1,800–6,800 rpm',source:'McLaren-derived'},
+  MV420:{internal:'PT-20V4-20',desc:'2.0 T V4',bhp:345,nm:470,revs:'2,000–7,000 rpm',source:'McLaren-derived'},
+  MV425:{internal:'PT-20V4-25',desc:'2.0 T V4',bhp:365,nm:495,revs:'2,200–7,200 rpm',source:'McLaren-derived'},
+  MV430:{internal:'PT-20V4-30',desc:'2.0 T V4',bhp:390,nm:515,revs:'2,300–7,500 rpm',source:'McLaren-derived'},
+  MI610:{internal:'PT-30I6-10',desc:'3.0 T Inline-6',bhp:370,nm:535,revs:'1,500–6,500 rpm',source:'McLaren-derived'},
+  MV620:{internal:'PB-30V6-20',desc:'3.0 TT V6',bhp:520,nm:680,revs:'2,200–7,200 rpm',source:'McLaren-derived'},
+  MV625:{internal:'PB-30V6-25',desc:'3.0 TT V6',bhp:540,nm:700,revs:'2,400–7,400 rpm',source:'McLaren-derived'},
+  MV630:{internal:'PB-30V6-30',desc:'3.0 TT V6',bhp:560,nm:720,revs:'2,600–7,800 rpm',source:'McLaren-derived'},
+  MV810:{internal:'PB-40V8-10',desc:'4.0 TT V8',bhp:700,nm:820,revs:'2,500–7,500 rpm',source:'McLaren-derived'},
+  AV1010:{internal:'PB-52V10-10',desc:'5.2 TT V10',bhp:850,nm:900,revs:'2,800–7,800 rpm',source:'Audi-derived'},
+  AV1020:{internal:'PB-52V10-20',desc:'5.2 TT V10',bhp:920,nm:950,revs:'3,000–8,200 rpm',source:'Audi-derived'}
+};
+/* effects: kg (weight change), acc (0-60 change, s), top (mph; ignored where top speed is limited) */
+const PACKAGES={
+  tech:{name:'Technology',price:2000,desc:'Head-up display, upgraded audio, surround cameras, enhanced telemetry.'},
+  da:{name:'Driver Assistance',price:1800,desc:'Adaptive cruise, lane assist, blind-spot monitoring.'},
+  shadow:{name:'Shadow',price:1200,desc:'Black exterior trim, tinted glass, dark badging.'},
+  perf:{name:'Performance',price:3500,desc:'Upgraded brakes, sport exhaust, suspension tuning, launch optimisation.'},
+  light:{name:'Lightweight',price:4000,desc:'Carbon roof, reduced sound deadening, lightweight seats.',fx:{kg:-35,acc:-0.1}},
+  race:{name:'Race',price:5500,desc:'Track-calibrated adjustable dampers, semi-slick tyres, uprated brake pads and fluid, extra cooling, harness bar, lap-timing data logging.',fx:{acc:-0.1}},
+  carbon:{name:'Carbon',price:6000,desc:'Exterior carbon trim, aero elements, interior carbon accents.',fx:{kg:-10},includes:['shadow']},
+  aero:{name:'Aerodynamic',price:7500,desc:'Active aero, larger splitter, rear wing system.',fx:{top:-4}}
+};
+const PKG_ORDER=['perf','light','race','carbon','aero','tech','da','shadow'];
+const O={
+  low:['tech','da','shadow'], mid:['tech','da','shadow','perf'],
+  v1s:['tech','da','shadow','light','race','carbon','aero'],
+  s:['tech','da','shadow','light','carbon'], r:['tech','da','shadow','light','race','carbon','aero'],
+  ffBase:['tech','da','shadow','perf'], ffSR:['tech','da','shadow','race','carbon','aero'],
+  ffCS:['tech','da','shadow','carbon','aero'], ffGT4:['tech','da'],
+  df:['da','shadow','carbon','race','aero'], gt3:['da']
+};
+const T=(id,label,box,engine,drive,kg,acc,top,price,opts,extra)=>Object.assign({id,label,box,engine,drive,kg,acc,top,price,opts},extra||{});
+const MODELS=[
+  {id:'v1',name:'V1',role:'Compact performance hatch',body:'hatch',color:'#2F6B5E',trims:[
+    T('18','18',false,'MI408','FWD',1325,8.2,135,24995,O.low),
+    T('20','20',false,'MI410','FWD',1350,7.0,145,29995,O.low),
+    T('30','30',false,'MI415','FWD',1365,6.2,150,32995,O.mid),
+    T('s','S',true,'MV420','AWD',1440,4.5,165,39995,O.v1s)]},
+  {id:'v2',name:'V2',role:'Compact sports coupé',body:'coupe',color:'#3A6189',trims:[
+    T('20','20',false,'MI410','RWD',1380,6.5,150,29995,O.low),
+    T('30','30',false,'MI415','RWD',1420,5.4,160,34995,O.mid),
+    T('s','S',true,'MV425','RWD',1460,4.5,170,44995,O.s),
+    T('r','R',true,'MV620','RWD',1520,3.8,180,58995,O.r)]},
+  {id:'v3',name:'V3',role:'Sports saloon',body:'saloon',color:'#3A6189',trims:[
+    T('20','20',false,'MI410','RWD',1450,6.8,150,31995,O.low),
+    T('30','30',false,'MI415','RWD',1500,5.6,160,36995,O.mid),
+    T('s','S',true,'MV425','RWD',1530,4.6,170,46995,O.s),
+    T('r','R',true,'MV620','RWD',1560,3.9,180,60995,O.r)]},
+  {id:'v5',name:'V5',role:'High-performance estate',body:'estate',color:'#4A3080',trims:[
+    T('30','30',false,'MI415','RWD',1620,6.0,155,39995,O.low),
+    T('40','40',false,'MI610','RWD',1700,4.8,170,46995,O.mid),
+    T('s','S',true,'MV620','AWD',1780,3.7,180,62995,O.s,{limited:true}),
+    T('r','R',true,'MV810','AWD',1880,3.2,190,79995,O.r,{limited:true})]},
+  {id:'v6',name:'V6',role:'Grand touring coupé',body:'gt',color:'#4A3080',trims:[
+    T('30','30',false,'MI415','RWD',1560,5.8,155,42995,O.low),
+    T('40','40',false,'MI610','RWD',1640,4.6,172,49995,O.mid),
+    T('s','S',true,'MV620','AWD',1720,3.5,180,66995,O.s,{limited:true}),
+    T('r','R',true,'MV810','AWD',1820,3.1,190,84995,O.r,{limited:true})]},
+  {id:'firefly',name:'Firefly',role:'Lightweight two-seat sports car',body:'sports',color:'#6E5A35',pairs:[['base'],['s','cs'],['r','gt4']],trims:[
+    T('base','',false,'MI415','RWD',1220,4.9,160,44995,O.ffBase,{full:'Firefly'}),
+    T('s','S',true,'MV425','RWD',1270,4.2,170,56995,O.ffSR),
+    T('cs','CS',true,'MV430','RWD',1175,3.9,174,64995,O.ffCS,{full:'Firefly Clubsport',short:'Clubsport',basedOn:'s',note:'Based on Firefly S, with the Clubsport kit and a sharper engine tune. Race Package built in.'}),
+    T('r','R',true,'MV625','RWD',1330,3.4,192,74995,O.ffSR),
+    T('gt4','GT4',true,'MV630','RWD',1275,3.2,186,89995,O.ffGT4,{basedOn:'r',note:'Based on Firefly R, with the GT4 kit and a sharper engine tune. Race, Aerodynamic and Carbon built in.'})]},
+  {id:'dragonfly',name:'Dragonfly',role:'Flagship supercar',body:'super',color:'#7A3442',trims:[
+    T('rwd','RWD',true,'AV1010','RWD',1485,2.7,214,169995,O.df),
+    T('awd','AWD',true,'AV1010','AWD',1555,2.4,212,179995,O.df),
+    T('gt3','GT3',true,'AV1020','RWD',1425,2.5,208,219995,O.gt3,{note:'Track-focused road car. Fully specified as standard.'})]}
+];
+const SPITFIRE=[
+  {id:'lm',label:'LM',role:'Endurance prototype · front-axle electric deployment',body:'proto',code:'MV650-H20',internal:'PB-30V6-50-H20',desc:'3.0 TT V6 hybrid',ice:680,elec:200,bhp:880,nm:'≈900',drive:'Hybrid AWD',kg:1100,acc:2.3,acc100:4.6,top:218,revs:'3,000–8,500 rpm'},
+  {id:'gp',label:'GP',role:'Open-wheel competition car · more aggressive combustion tune',body:'open',code:'MV660-H15',internal:'PB-30V6-60-H15',desc:'3.0 TT V6 hybrid',ice:800,elec:180,bhp:980,nm:'≈820',drive:'RWD hybrid',kg:800,acc:2.1,acc100:4.0,top:225,revs:'3,200–9,000 rpm'}
+];
+/* outline silhouettes, 120×48 */
+const BODY={
+  hatch:'M8 36 V30 Q8 26 14 25 L30 22 L44 12 Q48 10 54 10 H84 Q90 10 94 16 L102 24 Q112 26 112 31 V36',
+  coupe:'M8 36 V31 Q8 27 16 26 L36 23 L52 13 Q56 11 62 11 H78 Q86 11 94 18 L100 24 Q112 26 112 31 V36',
+  saloon:'M8 36 V31 Q8 27 16 26 L34 24 L46 14 Q50 12 56 12 H80 Q86 12 92 18 L98 24 L108 25 Q112 26 112 31 V36',
+  estate:'M8 36 V31 Q8 27 16 26 L34 24 L46 13 Q49 11 54 11 H104 Q108 11 109 15 L111 26 Q112 28 112 31 V36',
+  gt:'M8 36 V31 Q8 27 18 25 L40 22 L56 13 Q60 11 66 11 H80 Q90 11 98 19 L102 24 Q112 26 112 31 V36',
+  sports:'M8 36 V32 Q8 28 18 27 L40 25 L54 16 Q58 14 64 14 H76 Q86 14 94 21 L100 26 Q112 27 112 32 V36',
+  super:'M6 36 V33 Q6 29 16 28 L44 25 L58 17 Q62 15 68 15 H78 Q90 16 102 24 Q112 27 114 32 V36',
+  proto:'M4 36 V32 Q6 28 18 27 L46 24 L58 15 Q62 13 68 13 H76 Q86 14 94 21 L104 25 Q116 27 116 33 V36 M86 14 L90 8 H104 L106 22'
+};
+const WINDOW={
+  hatch:'M46 14 L38 22 H98 L92 15 Q89 12 84 12 Z', coupe:'M54 14 L44 22 H96 L90 16 Q86 13 78 13 Z',
+  saloon:'M48 16 L40 23 H94 L89 17 Q85 14 80 14 Z', estate:'M48 15 L40 23 H108 L106 15 Q105 13 102 13 Z',
+  gt:'M58 15 L48 22 H98 L93 17 Q88 13 80 13 Z', sports:'M56 17 L50 24 H90 L86 19 Q82 16 76 16 Z',
+  super:'M60 18 L54 24 H92 L86 19 Q80 17 76 17 Z', proto:'M60 16 L54 23 H88 L84 18 Q80 15 74 15 Z'
+};
+
+/* ================= helpers ================= */
+const $=s=>document.querySelector(s);
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const gbp=n=>'£'+Math.round(n).toLocaleString('en-GB');
+const kg=n=>Math.round(n).toLocaleString('en-GB')+' kg';
+const model=id=>MODELS.find(m=>m.id===id);
+const trimOf=(m,id)=>m.trims.find(t=>t.id===id);
+const trimName=(m,t)=>t.full||(m.name+' '+(t.short||t.label));
+function carSVG(body,big,accent){
+  const sw=big?0.9:1.6;
+  const win=WINDOW[body]?`<path d="${WINDOW[body]}" stroke="${big?'#64666A':'currentColor'}" stroke-width="${sw*0.8}"></path>`:'';
+  const hub=big?`<circle cx="28" cy="36" r="3.5" stroke="${accent}"></circle><circle cx="92" cy="36" r="3.5" stroke="${accent}"></circle>`:'';
+  return `<svg viewBox="0 0 120 48" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="${BODY[body]}"></path>${win}<path d="M8 36 H20 M36 36 H84 M100 36 H112"></path><circle cx="28" cy="36" r="7"></circle><circle cx="92" cy="36" r="7"></circle>${hub}</svg>`;
+}
+function openWheelSVG(){
+  return `<svg viewBox="0 0 120 48" fill="none" stroke="#F6F5F1" stroke-width="0.9" stroke-linejoin="round" stroke-linecap="round" role="img" aria-label="Spitfire GP outline"><path d="M8 33 H16 M4 27 H18 V34"></path><path d="M38 31 H48 L56 26 H64 L66 21 H72 L76 26 H86 L96 31"></path><path d="M38 31 V34 H86"></path><path d="M100 22 H116 V30 H108"></path><path d="M66 21 Q70 17 74 21"></path><circle cx="28" cy="33" r="8"></circle><circle cx="28" cy="33" r="4" stroke="#B07CB8"></circle><circle cx="96" cy="33" r="8.5"></circle><circle cx="96" cy="33" r="4" stroke="#B07CB8"></circle></svg>`;
+}
+
+/* ================= state & rules ================= */
+const state={view:'build',model:'firefly',trim:'cs',sel:new Set(['carbon','tech']),overlay:null};
+function effective(t,sel){
+  /* chosen = selected and offered on this trim; incl = brought in by another package (never charged) */
+  const chosen=PKG_ORDER.filter(k=>sel.has(k)&&t.opts.includes(k));
+  const incl=new Set();
+  chosen.forEach(k=>(PACKAGES[k].includes||[]).forEach(i=>{if(t.opts.includes(i)) incl.add(i);}));
+  return {chosen,incl,paid:chosen.filter(k=>!incl.has(k))};
+}
+function compute(m,t,sel){
+  const e=ENGINES[t.engine],{chosen,incl,paid}=effective(t,sel);
+  let w=t.kg,a=t.acc,top=t.top;const notes={kg:[],acc:[],top:[]};
+  const applied=new Set([...chosen,...incl]);
+  applied.forEach(k=>{
+    const fx=PACKAGES[k].fx; if(!fx) return;
+    if(fx.kg){w+=fx.kg;notes.kg.push(PACKAGES[k].name);}
+    if(fx.acc){a+=fx.acc;notes.acc.push(PACKAGES[k].name);}
+    if(fx.top&&!t.limited){top+=fx.top;notes.top.push(PACKAGES[k].name);}
+  });
+  a=Math.round(a*10)/10;
+  const price=t.price+paid.reduce((s,k)=>s+PACKAGES[k].price,0);
+  return {e,w,a,top,notes,chosen,incl,paid,price};
+}
+function setModel(id){
+  const m=model(id); if(!m) return;
+  state.model=id; state.trim=m.trims[0].id; state.sel=new Set(); render();
+}
+function setTrim(id){
+  const m=model(state.model),t=trimOf(m,id); if(!t) return;
+  state.trim=id;
+  state.sel=new Set([...state.sel].filter(k=>t.opts.includes(k)));
+  render();
+}
+function togglePkg(k){
+  const t=trimOf(model(state.model),state.trim); if(!t.opts.includes(k)) return;
+  if(state.sel.has(k)) state.sel.delete(k);
+  else{
+    const {incl}=effective(t,state.sel);
+    if(incl.has(k)) return;
+    state.sel.add(k);
+    (PACKAGES[k].includes||[]).forEach(i=>state.sel.delete(i));
+  }
+  render();
+}
+
+/* build codes, e.g. FIREFLY-CS-CARBON.TECH */
+function buildCode(m,t,sel){
+  const keys=PKG_ORDER.filter(k=>sel.has(k)&&t.opts.includes(k));
+  return [m.id.toUpperCase(),t.id.toUpperCase(),keys.length?keys.join('.').toUpperCase():'STD'].join('-');
+}
+
+/* ================= render ================= */
+function render(){
+  document.documentElement.style.setProperty('--fam',model(state.model).color);
+  $('#app').innerHTML=state.view==='spitfire'?spitfireHTML():buildHTML();
+  if(state.overlay) renderOverlay();
+}
+function topHTML(){
+  return `<header class="top wrap"><a class="brand" href="#" data-act="home">VOBISCUM</a>
+    <nav class="topnav" aria-label="Sections">
+      <button data-act="view:build" ${state.view==='build'?'aria-current="page"':''}>Configure</button>
+      <button data-act="view:spitfire" ${state.view==='spitfire'?'aria-current="page"':''}>Motorsport</button>
+      <button data-act="saved">Saved builds</button>
+    </nav></header>`;
+}
+function buildHTML(){
+  const m=model(state.model),t=trimOf(m,state.trim),c=compute(m,t,state.sel);
+  const models=MODELS.map(x=>`<button class="mbtn" data-model="${x.id}" aria-pressed="${x.id===m.id}" style="${x.id===m.id?`border-bottom-color:${x.color}`:''}">${carSVG(x.body,false)}<span>${x.name}</span><small>from ${gbp(x.trims[0].price)}</small></button>`).join('');
+  const badgeT=t.label?`<span class="t ${t.box?'box':'plain'}">${esc(t.label)}</span>`:'';
+  const sub=t.note||m.role;
+  const fx=(arr)=>arr.length?('with '+arr.join(' + ')):'';
+  const base=t.basedOn?trimOf(m,t.basedOn):null;
+  const vsBase=base?`+${c.e.bhp-ENGINES[base.engine].bhp} bhp over ${esc(trimName(m,base))}`:'';
+  const specs=[
+    ['Power',c.e.bhp+' bhp',vsBase],
+    ['Torque',c.e.nm+' Nm',''],
+    ['0–60 mph',c.a.toFixed(1)+' s',fx(c.notes.acc)],
+    ['Top speed',c.top+' mph'+(t.limited?'*':''),c.notes.top.length?fx(c.notes.top):(t.limited?'*Limited':'')],
+    ['Weight',kg(c.w),fx(c.notes.kg)],
+    ['Drive',t.drive,'']
+  ].map(([l,v,n])=>`<div class="spec"><span class="l">${l}</span><span class="v">${esc(v)}</span><span class="n">${esc(n)}</span></div>`).join('');
+  const range=m.trims.map(x=>{const e=ENGINES[x.engine];return `<tr class="${x.id===t.id?'on':''}"><td>${esc(x.short||x.label||'Firefly')}</td><td>${x.engine}</td><td>${e.bhp} / ${e.nm}</td><td>${x.drive}</td><td>${kg(x.kg)}</td><td>${x.acc.toFixed(1)} s</td><td>${x.top} mph${x.limited?'*':''}</td><td>${gbp(x.price)}</td></tr>`;}).join('');
+  const groups=m.pairs||m.trims.map(x=>[x.id]);
+  const trims=groups.map(g=>`<div class="tgroup" role="group">${g.map(id=>{const x=trimOf(m,id);return `<button class="tbtn" data-trim="${x.id}" aria-pressed="${x.id===t.id}"><b>${esc(x.short||x.label||m.name)}</b><span>${gbp(x.price)}</span></button>`;}).join('')}</div>`).join('');
+  const pk=PKG_ORDER.filter(k=>t.opts.includes(k)).map(k=>{
+    const p=PACKAGES[k],on=state.sel.has(k),inc=c.incl.has(k)&&!state.sel.has(k);
+    const eff=p.fx?[p.fx.kg?`${p.fx.kg} kg`:'',p.fx.acc?`${p.fx.acc} s to 60`:'',p.fx.top?(t.limited?'':`${p.fx.top} mph top speed`):''].filter(Boolean).join(' · '):'';
+    const extra=p.includes?' Includes '+p.includes.map(i=>PACKAGES[i].name).join(', ')+'.':'';
+    return `<label class="pkg${inc?' inc':''}"><input type="checkbox" data-pkg="${k}" ${on||inc?'checked':''} ${inc?'disabled':''}>
+      <span class="nm"><b>${p.name}</b><small>${esc(inc?('Included with '+c.chosen.filter(x=>(PACKAGES[x].includes||[]).includes(k)).map(x=>PACKAGES[x].name).join(', ')+'.'):(p.desc+extra))}</small>${eff&&!inc?`<em>${esc(eff)}</em>`:''}</span>
+      <span class="pr">${inc?'Included':gbp(p.price)}</span></label>`;
+  }).join('');
+  const chosenNames=c.paid.map(k=>PACKAGES[k].name);
+  return `${topHTML()}
+  <nav class="models wrap" aria-label="Choose a model">${models}</nav>
+  <div class="main">
+    <section class="stage wrap" aria-label="Your car">
+      <div class="title"><p class="kicker">${esc(m.role)}</p>
+        <div class="badge"><span class="m">${esc(m.name)}</span>${badgeT}</div>
+        <p class="sub">${esc(t.full&&t.full!==m.name?t.full+' · ':'')}${esc(sub)}</p></div>
+      <div class="car" style="color:var(--ink)">${carSVG(m.body,true,m.color)}<span class="eng mono">${t.engine} · ${esc(c.e.desc)}</span></div>
+      <div class="specs">${specs}</div>
+      <p class="engine-line">${t.engine} · ${esc(c.e.desc)} · ${esc(c.e.source)} · ${esc(c.e.revs)}${t.limited?' · *Electronically limited':''}</p>
+      <div class="range"><h2 class="kicker">${esc(m.name)}, by trim</h2><div class="rtable"><table><thead><tr><th>Trim</th><th>Engine</th><th>bhp / Nm</th><th>Drive</th><th>Weight</th><th>0–60</th><th>Top</th><th>Price</th></tr></thead><tbody>${range}</tbody></table></div></div>
+    </section>
+    <aside class="side wrap" aria-label="Configure">
+      <section class="trims"><h2 class="kicker">Trim</h2>${trims}${m.pairs?'<p class="tnote">Clubsport and GT4 are the sharper versions of the S and R beside them.</p>':''}</section>
+      <section><h2 class="kicker">Packages</h2>${pk?`<div class="pkgs">${pk}</div>`:'<p class="empty">This trim comes fully specified.</p>'}</section>
+    </aside>
+  </div>
+  <footer class="bar wrap"><div class="info"><span class="what">${esc(trimName(m,t))}${chosenNames.length?' · '+esc(chosenNames.join(', ')):''}</span><span class="tot">${gbp(c.price)}</span></div>
+    <div class="acts"><button class="btn" data-act="save">Save build</button><button class="btn solid" data-act="summary">Summary</button></div></footer>`;
+}
+function spitfireHTML(){
+  const cars=SPITFIRE.map(s=>`<article class="cardx">
+    <div class="pic" style="color:#F6F5F1">${s.body==='open'?openWheelSVG():carSVG('proto',true,'#B07CB8')}</div>
+    <div class="bd"><span class="m">Spitfire</span><span class="t">${s.label}</span></div>
+    <p class="role">${esc(s.role)}</p>
+    <div class="g">
+      <div><span class="l">Combined</span><span class="v">${s.bhp} bhp</span></div>
+      <div><span class="l">Engine + electric</span><span class="v">${s.ice} + ${s.elec}</span></div>
+      <div><span class="l">Torque</span><span class="v">${s.nm} Nm</span></div>
+      <div><span class="l">0–60 / 0–100</span><span class="v">${s.acc} / ${s.acc100} s</span></div>
+      <div><span class="l">Top speed</span><span class="v">${s.top} mph</span></div>
+      <div><span class="l">Weight</span><span class="v">${kg(s.kg)}</span></div>
+    </div>
+    <p class="role mono">${s.code} · ${s.internal} · ${esc(s.desc)} · ${s.drive} · ${s.revs}</p>
+  </article>`).join('');
+  return `${topHTML()}<div class="sf">
+    <section class="hero wrap"><p class="kicker" style="color:var(--soft)">Motorsport</p><h1>Spitfire</h1>
+      <p class="lede">Vobiscum’s competition and experimental programme. A separate family from the road range, not a road-car trim, and not for sale through the configurator.</p></section>
+    <div class="cars">${cars}</div>
+    <p class="foot wrap">Torque figures are working system figures, not crankshaft torque. <button class="btn" data-act="view:build" style="margin-left:12px">Back to the road range</button></p>
+  </div>`;
+}
+
+/* ================= overlays: summary & saved ================= */
+function renderOverlay(){
+  let host=$('#ov'); if(!host){host=document.createElement('div');host.id='ov';document.body.appendChild(host);}
+  if(state.overlay==='summary'){
+    const m=model(state.model),t=trimOf(m,state.trim),c=compute(m,t,state.sel),code=buildCode(m,t,state.sel);
+    const lines=[[trimName(m,t),gbp(t.price)],...c.paid.map(k=>[PACKAGES[k].name+((PACKAGES[k].includes||[]).length?' (incl. '+PACKAGES[k].includes.map(i=>PACKAGES[i].name).join(', ')+')':''),gbp(PACKAGES[k].price)])];
+    host.innerHTML=`<div class="scrim" data-act="close"><div class="sheet wrap" role="dialog" aria-modal="true" aria-labelledby="sumh" onclick="event.stopPropagation()">
+      <div class="hd"><p class="kicker" id="sumh">Your build</p><button class="x" data-act="close" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+      <div class="badge"><span class="m" style="font-size:36px">${esc(m.name)}</span>${t.label?`<span class="t ${t.box?'box':'plain'}" style="font-size:24px">${esc(t.label)}</span>`:''}</div>
+      <dl class="sum"><dt>Engine</dt><dd>${t.engine} · ${esc(c.e.desc)}</dd><dt>Power / torque</dt><dd>${c.e.bhp} bhp / ${c.e.nm} Nm</dd><dt>0–60 mph</dt><dd>${c.a.toFixed(1)} s</dd><dt>Top speed</dt><dd>${c.top} mph${t.limited?' (limited)':''}</dd><dt>Weight</dt><dd>${kg(c.w)}</dd><dt>Drive</dt><dd>${t.drive}</dd></dl>
+      <div class="lines">${lines.map(([a,b])=>`<span>${esc(a)}</span><span>${b}</span>`).join('')}</div>
+      <div class="total"><b>Total</b><span>${gbp(c.price)}</span></div>
+      <div><p class="kicker" style="margin-bottom:8px">Build code</p><div class="code"><code id="codeTxt">${code}</code><button class="btn dark" data-act="copy">Copy</button></div></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn dark solid" data-act="save">Save build</button><button class="btn dark" data-act="close">Keep configuring</button></div>
+    </div></div>`;
+  }else if(state.overlay==='saved'){
+    const rows=saved.items.length?saved.items.map(b=>`<div class="srow"><button class="open" data-open="${esc(b.id)}"><b>${esc(b.title)}</b><span>${esc(b.code)} · ${gbp(b.price)}</span></button><button class="del${armed===b.id?' arm':''}" data-del="${esc(b.id)}">${armed===b.id?'Confirm':'Delete'}</button></div>`).join(''):'<p class="empty">No saved builds yet. Configure a car and press Save build.</p>';
+    host.innerHTML=`<div class="scrim" data-act="close"><div class="sheet wrap" role="dialog" aria-modal="true" aria-labelledby="svh" onclick="event.stopPropagation()">
+      <div class="hd"><p class="kicker" id="svh">Saved builds</p><button class="x" data-act="close" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+      <div class="saved">${rows}</div>
+      <p class="empty" style="font-size:12px">${saved.db?'Saved to this configurator, so they’re here on any device you open it on.':'Saved in this browser.'}</p>
+    </div></div>`;
+  }
+}
+function closeOverlay(){state.overlay=null;armed=null;const h=$('#ov');if(h) h.remove();}
+
+/* ================= saved builds ================= */
+const saved={db:null,items:[]};
+let armed=null;
+function loadLocal(){try{return JSON.parse(localStorage.getItem('vob.builds')||'[]')||[];}catch(_){return [];}}
+function saveLocal(a){try{localStorage.setItem('vob.builds',JSON.stringify(a));}catch(_){}}
+async function saveBuild(){
+  const m=model(state.model),t=trimOf(m,state.trim),c=compute(m,t,state.sel);
+  const b={title:trimName(m,t)+(c.paid.length?' · '+c.paid.map(k=>PACKAGES[k].name).join(', '):''),code:buildCode(m,t,state.sel),model:m.id,trim:t.id,packages:[...state.sel].filter(k=>t.opts.includes(k)),price:c.price,savedAt:Date.now()};
+  if(saved.items.some(x=>x.code===b.code)){toast('This build is already saved.');return;}
+  if(saved.db){
+    try{await saved.db.collection('builds').add(b);toast('Build saved.');}
+    catch(err){toast(err&&err.code==='quota_exceeded'?'Your saved builds are full. Delete one to save more.':'Couldn’t save that build. Try again.');}
+  }else{const id='b'+Date.now().toString(36);saved.items.unshift({id,...b});saveLocal(saved.items);toast('Build saved in this browser.');}
+}
+async function deleteBuild(id){
+  if(saved.db){try{await saved.db.collection('builds').doc(id).delete();}catch(_){toast('Couldn’t delete that build.');}}
+  else{saved.items=saved.items.filter(b=>b.id!==id);saveLocal(saved.items);}
+  armed=null; if(state.overlay==='saved') renderOverlay();
+}
+function openBuild(id){
+  const b=saved.items.find(x=>x.id===id); if(!b) return;
+  const m=model(b.model),t=m&&trimOf(m,b.trim); if(!t){toast('That build’s trim no longer exists.');return;}
+  state.view='build';state.model=m.id;state.trim=t.id;state.sel=new Set((b.packages||[]).filter(k=>t.opts.includes(k)));
+  closeOverlay();render();
+}
+async function initDb(){
+  saved.items=loadLocal();
+  const c=window.claude; if(!c||!c.use) return;
+  let db=null; try{db=await c.use('db');}catch(_){db=null;}
+  if(!db) return;
+  saved.db=db;
+  db.collection('builds').orderBy('savedAt','desc').limit(200).onSnapshot(snap=>{
+    saved.items=snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(state.overlay==='saved') renderOverlay();
+  },()=>{saved.db=null;saved.items=loadLocal();});
+}
+
+/* ================= events ================= */
+let toastT=0;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true;},3200);}
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-model],[data-trim],[data-act],[data-open],[data-del]'); if(!el) return;
+  if(el.dataset.model){setModel(el.dataset.model);return;}
+  if(el.dataset.trim){setTrim(el.dataset.trim);return;}
+  if(el.dataset.open){openBuild(el.dataset.open);return;}
+  if(el.dataset.del){const id=el.dataset.del;if(armed===id) deleteBuild(id); else{armed=id;renderOverlay();}return;}
+  const a=el.dataset.act;
+  if(a==='close'&&(el===e.target||el.tagName==='BUTTON')){closeOverlay();return;}
+  if(a==='home'){e.preventDefault();state.view='build';go();return;}
+  if(a&&a.startsWith('view:')){state.view=a.slice(5);go();window.scrollTo(0,0);return;}
+  if(a==='summary'){state.overlay='summary';renderOverlay();return;}
+  if(a==='saved'){state.overlay='saved';renderOverlay();return;}
+  if(a==='save'){saveBuild();return;}
+  if(a==='copy'){const code=$('#codeTxt').textContent;
+    const fallback=()=>{const r=document.createRange();r.selectNodeContents($('#codeTxt'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('Code selected. Press Ctrl+C to copy.');};
+    try{navigator.clipboard.writeText(code).then(()=>toast('Build code copied.'),fallback);}catch(_){fallback();}
+    return;}
+});
+document.addEventListener('change',e=>{if(e.target.dataset&&e.target.dataset.pkg) togglePkg(e.target.dataset.pkg);});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&state.overlay) closeOverlay();});
+function go(){try{history.replaceState(null,'',state.view==='spitfire'?'#spitfire':location.pathname+location.search);}catch(_){}render();}
+function fromHash(){state.view=location.hash==='#spitfire'?'spitfire':'build';render();}
+window.addEventListener('hashchange',fromHash);
+
+fromHash();
+initDb();
+})();
+</script>
+</body>
+</html>
